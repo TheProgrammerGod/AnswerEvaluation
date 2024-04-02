@@ -22,7 +22,7 @@ def get_features(texts):
     if type(texts) is str:
         texts = [texts]
     #tf.run([tf.global_variables_initializer(), tf.tables_initializer()])
-    return embed(texts)
+    return embed(tf.constant(texts))
 
 #read the question and answer data from the file
 def read_data(file_path):
@@ -80,7 +80,18 @@ def cosine_similarity(v1, v2):
     #return np.dot(a, b) / (mag1 * mag2)
     #cosi = torch.nn.CosineSimilarity(dim=0)
     #return cosi(v1, v2)
-    return tf.keras.losses.cosine_similarity(v1,v2 )
+    #return tf.keras.losses.cosine_similarity(v1,v2 )
+    # tf.convert_to_tensor(v1)
+    # tf.convert_to_tensor(v2)
+    # print(type(v1))
+    # cos = tf.nn.CosineSimilarity(dim=1)
+    # return cos(v1,v2)
+    t1 = tf.nn.l2_normalize(v1, axis=1)
+    t2 = tf.nn.l2_normalize(v2, axis=1)
+    cosine = tf.reduce_sum(tf.multiply(t1, t2), axis=1)
+    clip_cosine = tf.clip_by_value(cosine, -1.0, 1.0)
+    scores = 1.0 - tf.acos(clip_cosine) / np.pi
+    return scores
 
 def test_similarity(text1, text2):
     vec1 = get_features(text1)
@@ -114,6 +125,5 @@ if __name__ == '__main__':
         answer_keywords = keywordsExtract(answer)
         answer = preprocess(answer)
         keyword_score = keyword_Matching(model_keywords, answer_keywords) * 0.2 * marks
-        qst_score = test_similarity(model, answer) #* 0.6 * marks
-        print(qst_score)
+        qst_score = test_similarity(model, answer) * 0.6 * marks
         

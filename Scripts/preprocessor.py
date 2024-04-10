@@ -9,15 +9,20 @@ import tensorflow_hub as hub
 import nltk
 import re
 import string
+import math
 import torch
+import requests
+from dotenv import load_dotenv
+import os
+load_dotenv()
 
 # rake = Rake()
 # tensroflow hub module for Universal sentence Encoder 
-module_url = "https://tfhub.dev/google/universal-sentence-encoder/4" 
+#module_url = "https://tfhub.dev/google/universal-sentence-encoder/4" 
 #@param ["https://tfhub.dev/google/universal-sentence-encoder/2", "https://tfhub.dev/google/universal-sentence-encoder-large/3"]
 
-embed = hub.load(module_url)
-
+#embed = hub.load(module_url)
+embed = tf.saved_model.load('model')
 def get_features(texts):
     if type(texts) is str:
         texts = [texts]
@@ -110,6 +115,18 @@ def keyword_Matching(model, answer):
     score = score / numKeywords
     return score
 
+def grammar_check(sentence):
+    base_url = "https://api.textgears.com/grammar?key="+os.environ['GRAMMAR_API_KEY']+"&language=en-GB&ai=true"
+    sentence = sentence.replace(" ","+")
+    r = requests.get(base_url+"&text="+sentence)
+    return len(r.json()['response']['errors'])
+
+def grammar_score(model,answer):
+    model_score = grammar_check(model)
+    answer_score = grammar_check(answer)
+    score = 1 - (abs(model_score - answer_score) / model_score)
+    return score
+
 if __name__ == '__main__':
     question = read_data('Data\\Q1\\question.txt')[0]
     marks = getMarks(question)
@@ -125,5 +142,7 @@ if __name__ == '__main__':
         answer_keywords = keywordsExtract(answer)
         answer = preprocess(answer)
         keyword_score = keyword_Matching(model_keywords, answer_keywords) * 0.2 * marks
-        qst_score = test_similarity(model, answer) * 0.6 * marks
+        qst_score = math.ceil(test_similarity(model, answer) * 0.6 * marks)
+        gram_score = grammar_score(model,answer) * 0.2 * marks
+        print("Keyword Score : {keyword:.2f} Question Score : {qst:.2f} Grammer Score : {gst:.2f}".format(keyword=keyword_score, qst=qst_score,gst=gram_score))
         

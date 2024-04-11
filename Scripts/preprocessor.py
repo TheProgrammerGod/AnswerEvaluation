@@ -4,6 +4,7 @@ from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 import numpy as np
+from sympy import evaluate
 import tensorflow as tf
 import tensorflow_hub as hub
 import nltk
@@ -126,23 +127,31 @@ def grammar_score(model,answer):
     answer_score = grammar_check(answer)
     score = 1 - (abs(model_score - answer_score) / model_score)
     return score
+def remove_commas(text):
+    return text.replace(","," ")
 
-if __name__ == '__main__':
-    question = read_data('Data\\Q1\\question.txt')[0]
+def evaluate(length):
+    question = read_data('Data\\question.txt')[0]
     marks = getMarks(question)
     question = question[:(question.rindex('['))]
-    model = read_data('Data\\Q1\\model.txt')[0].lower()
+    model = read_data('Data\\model.txt')[0].lower()
     model_keywords = keywordsExtract(model)
     #print(model_keywords)
     model = preprocess(model)
-    file = open("Data\\Q1\\dataset.csv","a")
-    for i in range(1,4):
-        answer = read_data('Data\\Q1\\answer'+str(i)+'.txt')[0].lower()
-        #file.write("\n" + question + "," + answer + "," + marks + ",")
+    file = open("Data\\dataset.csv","w")
+    file.write("Question,Marks,Keyword Score,Grammer Score,Question Score,Total Score")
+    question = remove_commas(question)
+    for i in range(1,length+1):
+        answer = read_data('Data\\answer'+str(i)+'.txt')[0].lower()
+        ans = remove_commas(answer)
+        file.write("\n" + question + "," + str(marks) + ",")
         answer_keywords = keywordsExtract(answer)
         answer = preprocess(answer)
         keyword_score = keyword_Matching(model_keywords, answer_keywords) * 0.2 * marks
         qst_score = math.ceil(test_similarity(model, answer) * 0.6 * marks)
         gram_score = grammar_score(model,answer) * 0.2 * marks
-        print("Keyword Score : {keyword:.2f} Question Score : {qst:.2f} Grammer Score : {gst:.2f}".format(keyword=keyword_score, qst=qst_score,gst=gram_score))
-        
+        #print("Keyword Score : {keyword:.2f} Question Score : {qst:.2f} Grammer Score : {gst:.2f}".format(keyword=keyword_score, qst=qst_score,gst=gram_score))
+        file.write("{keyword:.2f},{gst:.2f},{qst:.2f},".format(keyword=keyword_score, qst=qst_score,gst=gram_score))
+        file.write(str(keyword_score + qst_score + gram_score))
+    print("Data Preprocessed and saved")
+    file.close()
